@@ -17,10 +17,18 @@
 // table): the batch lifecycle (submit/finalize/post are accepted --
 // matching the plan's no-op-pass-through decision established in
 // procurement -- but never advance status past 'draft', since nothing in
-// this domain tracks or gates that transition), deductions (always []
-// -- add/remove endpoints are omitted, not faked), and batch export
-// (CSV/JSON download has no meaningful "batch" to export beyond what the
-// live view already shows).
+// this domain tracks or gates that transition) and deductions (always []
+// -- add/remove endpoints are omitted, not faked).
+//
+// Batch export (CSV/JSON), added after the fact: unlike the lifecycle/
+// deductions gaps above, this needed no new domain concept -- it's just
+// a formatting endpoint over the same buildCurrentBatch() entries the
+// live view already computes and shows. The frontend's own
+// downloadBatchExport() (src/features/payroll/api.ts) fetches this as a
+// blob with a Bearer header rather than a bare <a href>, so a normal
+// sendJson-shaped 404 previously surfaced to the user as "Export failed
+// (404)" with no batch data lost -- this was a real missing route, not a
+// documented scope cut.
 import type { Router } from "../router.js";
 import { readJsonBody, sendError, sendJson } from "../context.js";
 import { requireStaffRole } from "../auth.js";
@@ -181,6 +189,42 @@ export function registerPayrollRoutes(router: Router): void {
           matched: true,
         })),
       });
+    } catch (err) {
+      sendError(res, err);
+    }
+  });
+
+  router.get("/api/v1/payroll/batches/:batchId/export.json", async (req, res) => {
+    try {
+      await requireStaffRole(req);
+      const batch = await buildCurrentBatch("");
+      const payload = JSON.stringify(batch, null, 2);
+      res.writeHead(200, {
+        "content-type": "application/json",
+        "content-disposition": `attachment; filename="payroll-batch-${SYNTHETIC_BATCH_ID}.json"`,
+      });
+      res.end(payload);
+    } catch (err) {
+      sendError(res, err);
+    }
+  });
+
+  router.get("/api/v1/payroll/batches/:batchId/export.csv", async (req, res) => {
+    try {
+      await requireStaffRole(req);
+      const batch = await buildCurrentBatch("");
+      const header = ["worker", "hours", "rate", "amount", "net_amount", "currency"];
+      const csvEscape = (value: string) =>
+        /[",\n]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value;
+      const rows = batch.entries.map((e) =>
+        [e.worker, e.hours, e.rate, e.amount, e.net_amount, e.currency].map((v) => csvEscape(String(v))).join(","),
+      );
+      const csv = [header.join(","), ...rows].join("\r\n") + "\r\n";
+      res.writeHead(200, {
+        "content-type": "text/csv",
+        "content-disposition": `attachment; filename="payroll-batch-${SYNTHETIC_BATCH_ID}.csv"`,
+      });
+      res.end(csv);
     } catch (err) {
       sendError(res, err);
     }
