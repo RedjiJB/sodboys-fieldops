@@ -217,7 +217,9 @@ export function registerPayrollRoutes(router: Router): void {
       const csvEscape = (value: string) =>
         /[",\n]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value;
       const rows = batch.entries.map((e) =>
-        [e.worker, e.hours, e.rate, e.amount, e.net_amount, e.currency].map((v) => csvEscape(String(v))).join(","),
+        [e.worker, e.hours, Number(e.rate).toFixed(2), e.amount, e.net_amount, e.currency]
+          .map((v) => csvEscape(String(v)))
+          .join(","),
       );
       const csv = [header.join(","), ...rows].join("\r\n") + "\r\n";
       res.writeHead(200, {
