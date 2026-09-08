@@ -1,10 +1,17 @@
 # Demo scripts — setup and reference
 
-Three scripts, meant to be run in order or standalone:
+Nine scripts, meant to be run in order or standalone — see each file for its
+own audience/length:
 
 1. [`01-office-command-center.md`](01-office-command-center.md) — dashboard walkthrough (~10-12 min)
 2. [`02-crew-in-the-field.md`](02-crew-in-the-field.md) — WhatsApp walkthrough (~6-8 min)
 3. [`03-end-to-end-story.md`](03-end-to-end-story.md) — combined close, both screens side by side (~5 min)
+4. [`04-feature-equipment-fleet.md`](04-feature-equipment-fleet.md) — equipment/vehicle deep-dive (~5-6 min)
+5. [`05-feature-payroll.md`](05-feature-payroll.md) — payroll reconciliation deep-dive (~4-5 min)
+6. [`06-feature-procurement.md`](06-feature-procurement.md) — purchase orders/vendors (~5 min)
+7. [`07-scenario-problem-solution.md`](07-scenario-problem-solution.md) — 5 pick-and-mix problem/solution scenarios
+8. [`08-mobile-viewport-demo.md`](08-mobile-viewport-demo.md) — mobile UI reality check (~6-8 min)
+9. [`09-full-technical-walkthrough.md`](09-full-technical-walkthrough.md) — **every page/widget in the frontend + the backend architecture behind each one, in full technical detail** (~35-50 min) — for engineering-minded audiences or onboarding, not a sales pitch
 
 ## Before presenting
 
