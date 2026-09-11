@@ -1,9 +1,14 @@
-// Structured agent-interaction logging -- built to close a real gap: no
-// WhatsApp message content is retained anywhere (OpenClaw clears
-// channel_ingress_events.payload_json after processing, confirmed live),
-// so there was no material to review for prompt/tool fine-tuning. See
-// 0043_agent_interactions.sql's header for why this is a structured
-// paraphrase, not verbatim message retention.
+// Agent-interaction logging -- built to close a real gap: no WhatsApp
+// message content was retained anywhere (OpenClaw clears
+// channel_ingress_events.payload_json after processing, confirmed live).
+// Originally a structured-paraphrase-only design (see
+// 0043_agent_interactions.sql); 0045_agent_interactions_transcripts.sql
+// reverses that by explicit instruction -- full verbatim crew/bot message
+// text is now retained too, a real IT-management chat-review requirement,
+// not just fine-tuning input. crewMessage/botReply are optional (not
+// every interaction has a clean single-message shape to capture verbatim,
+// and older rows predate the columns entirely) -- summary/toolsCalled/
+// outcome stay required since the weekly review still depends on them.
 import { pool } from "../db/pool.js";
 
 export type AgentInteractionChannel = "whatsapp" | "dashboard_chat";
@@ -16,6 +21,8 @@ export type AgentInteraction = {
   summary: string;
   tools_called: string[];
   outcome: AgentInteractionOutcome;
+  crew_message: string | null;
+  bot_reply: string | null;
   created_at: string;
 };
 
@@ -25,11 +32,13 @@ export async function logAgentInteraction(args: {
   summary: string;
   toolsCalled?: string[];
   outcome: AgentInteractionOutcome;
+  crewMessage?: string;
+  botReply?: string;
 }): Promise<AgentInteraction> {
   const result = await pool.query(
-    `INSERT INTO agent_interactions (channel, crew_member_id, summary, tools_called, outcome)
-     VALUES ($1, $2, $3, $4, $5) RETURNING *`,
-    [args.channel, args.crewMemberId ?? null, args.summary, args.toolsCalled ?? [], args.outcome],
+    `INSERT INTO agent_interactions (channel, crew_member_id, summary, tools_called, outcome, crew_message, bot_reply)
+     VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
+    [args.channel, args.crewMemberId ?? null, args.summary, args.toolsCalled ?? [], args.outcome, args.crewMessage ?? null, args.botReply ?? null],
   );
   return result.rows[0] as AgentInteraction;
 }

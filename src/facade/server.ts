@@ -31,6 +31,7 @@ import { registerSettingsRoutes } from "./routes/settings.js";
 import { registerKpiRoutes } from "./routes/kpis.js";
 import { registerFieldReportRoutes } from "./routes/fieldReports.js";
 import { registerVendorRoutes } from "./routes/vendors.js";
+import { registerAgentInteractionRoutes } from "./routes/agentInteractions.js";
 
 export function buildFacadeServer(): Server {
   const router = new Router();
@@ -54,6 +55,7 @@ export function buildFacadeServer(): Server {
   registerKpiRoutes(router);
   registerFieldReportRoutes(router);
   registerVendorRoutes(router);
+  registerAgentInteractionRoutes(router);
 
   return createServer((req, res) => {
     const pathname = new URL(req.url ?? "/", "http://localhost").pathname;

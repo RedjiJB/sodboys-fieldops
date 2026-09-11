@@ -10,14 +10,16 @@ export function registerAgentInteractionTools(server: McpServer): void {
     {
       title: "Log Interaction Summary",
       description:
-        "Records a short, structured paraphrase of one WhatsApp exchange -- what the crew member asked, which tools resolved it, and the outcome. Never the crew member's verbatim message text (see 0043_agent_interactions.sql for why: this is a considered, structured-summary-only design, not a shortcut). Call this once per exchange, after responding. Minimum tier: 2.",
+        "Records one WhatsApp exchange for IT-management chat review and fine-tuning: a short structured summary plus the real verbatim message text (crewMessage/botReply). Call this once per exchange, after responding. Minimum tier: 2.",
       inputSchema: z.object({
         ...credentialArg,
         channel: z.enum(["whatsapp", "dashboard_chat"]).default("whatsapp"),
         crewMemberId: z.string().uuid().optional().describe("Omit if the sender couldn't be resolved -- use outcome: 'unresolved_sender' instead."),
-        summary: z.string().describe("One or two sentences: what was asked, what happened. No verbatim quoting of the crew member's message."),
+        summary: z.string().describe("One or two sentences: what was asked, what happened -- a quick-scan label for the review report, not a replacement for the verbatim fields below."),
         toolsCalled: z.array(z.string()).optional(),
         outcome: z.enum(["resolved", "partial", "failed", "unresolved_sender"]),
+        crewMessage: z.string().optional().describe("The crew member's message, verbatim, exactly as sent."),
+        botReply: z.string().optional().describe("Your reply, verbatim, exactly as sent."),
       }),
     },
     async ({ credentialJwt, ...args }) => {
