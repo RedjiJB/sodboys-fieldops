@@ -7,7 +7,15 @@ import { pool } from "../db/pool.js";
 import { getSite } from "./sites.js";
 import { getCrewMember } from "./crewMembers.js";
 import { getVehicle } from "./vehicles.js";
+import { getUser } from "./users.js";
 import { haversineDistanceMeters } from "./geo.js";
+
+export class InvalidFieldReportAuthorError extends Error {
+  constructor(public reason: "unknown_user" | "unknown_crew_member") {
+    super(reason === "unknown_user" ? "createdBy is not a real user id" : "createdByCrewMemberId is not a real crew member id");
+    this.name = "InvalidFieldReportAuthorError";
+  }
+}
 
 export type FieldReport = {
   id: string;
@@ -15,13 +23,43 @@ export type FieldReport = {
   report_date: string;
   notes: string;
   created_by: string | null;
+  created_by_crew_member_id: string | null;
   created_at: string;
 };
 
-export async function createFieldReport(args: { siteId: string; reportDate: string; notes: string; createdBy?: string }): Promise<FieldReport> {
+// Two independent, optional author fields, never one required actor type --
+// the dashboard (a real dashboard user, requireStaffRole-gated) and the
+// WhatsApp bot (a real crew member, resolved from the sender's phone) are
+// genuinely different identity systems with no FK between them (same
+// "users and crew_members are independent identities" rule this whole
+// project follows). createdBy must be a real users.id if supplied;
+// createdByCrewMemberId must be a real crew_members.id if supplied -- the
+// caller supplies whichever one it actually has, never both, never neither
+// silently coerced into the other. This is the real fix for the FK
+// violation previously hit when the WhatsApp bot (which only ever has a
+// crew-member identity) passed that id into what was then a users-only
+// column.
+export async function createFieldReport(args: {
+  siteId: string;
+  reportDate: string;
+  notes: string;
+  createdBy?: string;
+  createdByCrewMemberId?: string;
+}): Promise<FieldReport> {
+  // Validate before the insert -- turns what used to be a raw FK-violation
+  // Postgres error (the exact bug this fixes) into a clean, actionable
+  // rejection a caller can actually handle, matching the "raw DB errors
+  // reaching user-facing alerts" pattern flagged as a broader gap in
+  // docs/ARCHITECTURE.md's backlog.
+  if (args.createdBy && !(await getUser(args.createdBy))) {
+    throw new InvalidFieldReportAuthorError("unknown_user");
+  }
+  if (args.createdByCrewMemberId && !(await getCrewMember(args.createdByCrewMemberId))) {
+    throw new InvalidFieldReportAuthorError("unknown_crew_member");
+  }
   const result = await pool.query(
-    `INSERT INTO field_reports (site_id, report_date, notes, created_by) VALUES ($1, $2, $3, $4) RETURNING *`,
-    [args.siteId, args.reportDate, args.notes, args.createdBy ?? null],
+    `INSERT INTO field_reports (site_id, report_date, notes, created_by, created_by_crew_member_id) VALUES ($1, $2, $3, $4, $5) RETURNING *`,
+    [args.siteId, args.reportDate, args.notes, args.createdBy ?? null, args.createdByCrewMemberId ?? null],
   );
   return result.rows[0] as FieldReport;
 }

@@ -8,6 +8,7 @@ import { requireStaffRole } from "../auth.js";
 import { createFieldReport, listFieldReports, getFieldReport, getFieldReportContext, type FieldReport } from "../../domain/fieldReports.js";
 import { getSite } from "../../domain/sites.js";
 import { getUser } from "../../domain/users.js";
+import { getCrewMember } from "../../domain/crewMembers.js";
 
 type CreateBody = { site_id?: string; report_date?: string; notes?: string };
 
@@ -60,12 +61,17 @@ export function registerFieldReportRoutes(router: Router): void {
         sendJson(res, 404, { detail: "Not found" });
         return;
       }
-      const [context, site, author] = await Promise.all([
+      // Two independent author fields, at most one ever set (see
+      // fieldReports.ts's own comment) -- a dashboard-authored report
+      // resolves via users, a WhatsApp-authored one via crew_members.
+      const [context, site, dashboardAuthor, crewAuthor] = await Promise.all([
         getFieldReportContext(report),
         getSite(report.site_id),
         report.created_by ? getUser(report.created_by) : Promise.resolve(null),
+        report.created_by_crew_member_id ? getCrewMember(report.created_by_crew_member_id) : Promise.resolve(null),
       ]);
-      sendJson(res, 200, { ...toFrontendShape(report), ...context, site_name: site?.name ?? "Unknown site", author_name: author?.name ?? null });
+      const authorName = dashboardAuthor?.name ?? crewAuthor?.name ?? null;
+      sendJson(res, 200, { ...toFrontendShape(report), ...context, site_name: site?.name ?? "Unknown site", author_name: authorName });
     } catch (err) {
       sendError(res, err);
     }
