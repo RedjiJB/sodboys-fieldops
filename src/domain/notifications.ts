@@ -7,6 +7,8 @@
 import type { PoolClient } from "pg";
 import { pool } from "../db/pool.js";
 import { dispatchToWebhooks } from "./webhookTargets.js";
+import { listCrewMembers, type CrewRole } from "./crewMembers.js";
+import { getNotificationSettings } from "./notificationSettings.js";
 
 export type NotificationPriority = "critical" | "routine";
 
@@ -66,6 +68,39 @@ export async function listPendingNotifications(): Promise<Notification[]> {
     `SELECT * FROM notifications WHERE priority = 'critical' AND delivered_at IS NULL AND send_attempts < 5 ORDER BY created_at`,
   );
   return result.rows as Notification[];
+}
+
+export type NotificationRecipient = { crewMemberId: string; name: string; phone: string };
+
+// The real gap this closes: recipient_roles_override has always been a
+// role LABEL ({owner}, {management,owner}), never resolved to an actual
+// person a poller could message -- confirmed live before writing this
+// that nothing in the system ever called listPendingNotifications outside
+// of it being exposed as a tier-4 MCP tool with no agent polling it.
+// users and crew_members are genuinely independent identities (no FK,
+// same as everywhere else in this system) -- a dashboard role string like
+// "owner" only becomes an actual WhatsApp-reachable person by matching
+// against crew_members.role, which is the same convention by design (see
+// registerUser's own role column comment), not a coincidence this
+// function can rely on.
+//
+// A notification with no recipient_roles_override at all falls back to
+// notification_settings.critical_notification_roles -- the same default
+// every other role-scoped alert already uses (see raiseAlert's callers),
+// so a poller never has to special-case "no override set."
+export async function resolveNotificationRecipients(args: {
+  priority: NotificationPriority;
+  recipientRolesOverride: string[] | null;
+}): Promise<NotificationRecipient[]> {
+  let roles = args.recipientRolesOverride;
+  if (!roles || roles.length === 0) {
+    const settings = await getNotificationSettings();
+    roles = args.priority === "critical" ? settings.critical_notification_roles : [];
+  }
+  if (!roles || roles.length === 0) return [];
+
+  const members = await listCrewMembers({ roles: roles as CrewRole[], active: true });
+  return members.map((m) => ({ crewMemberId: m.id, name: m.name, phone: m.phone }));
 }
 
 // The dashboard inbox view -- org-wide, not per-recipient (v1 has no

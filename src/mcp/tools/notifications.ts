@@ -7,6 +7,7 @@ import {
   listPendingNotifications,
   markNotificationAttempted,
   markNotificationDelivered,
+  resolveNotificationRecipients,
 } from "../../domain/notifications.js";
 import { getNotificationSettings, updateNotificationSettings } from "../../domain/notificationSettings.js";
 import { requireCapability } from "../middleware.js";
@@ -90,6 +91,29 @@ export function registerNotificationTools(server: McpServer): void {
         await requireCapability(credentialJwt, "mcp:tool:list_pending_notifications", 4);
         const notifications = await listPendingNotifications();
         return { content: [{ type: "text", text: JSON.stringify(notifications) }] };
+      } catch (err) {
+        return deniedResult(err);
+      }
+    },
+  );
+
+  server.registerTool(
+    "resolve_notification_recipients",
+    {
+      title: "Resolve Notification Recipients",
+      description:
+        "Resolves a notification's recipient_roles_override (or, if unset, the priority-appropriate default from notification_settings) into actual active crew members and their phone numbers. Closes the real gap where recipient_roles_override was only ever a role LABEL, never resolved to a person a poller could actually message. System-integration tool. Minimum tier: 4.",
+      inputSchema: z.object({
+        ...credentialArg,
+        priority: z.enum(["critical", "routine"]),
+        recipientRolesOverride: z.array(z.string()).nullable(),
+      }),
+    },
+    async ({ credentialJwt, priority, recipientRolesOverride }) => {
+      try {
+        await requireCapability(credentialJwt, "mcp:tool:resolve_notification_recipients", 4);
+        const recipients = await resolveNotificationRecipients({ priority, recipientRolesOverride });
+        return { content: [{ type: "text", text: JSON.stringify(recipients) }] };
       } catch (err) {
         return deniedResult(err);
       }

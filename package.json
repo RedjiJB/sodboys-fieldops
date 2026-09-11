@@ -12,6 +12,7 @@
     "bootstrap:node": "tsx src/identity/bootstrapNode.ts",
     "bootstrap:openclaw-agent": "tsx src/identity/bootstrapOpenClawAgent.ts",
     "bootstrap:ops-infra-agent": "tsx src/identity/bootstrapOpsInfraAgent.ts",
+    "bootstrap:notification-poller-agent": "tsx src/identity/bootstrapNotificationPollerAgent.ts",
     "mcp:stdio": "tsx src/mcp/transports/stdio.ts",
     "mcp:http": "tsx src/mcp/transports/http.ts",
     "facade:http": "tsx watch src/facade/server.ts",

@@ -117,12 +117,16 @@ export async function listCrewWithLatestLocation(filter?: { active?: boolean }):
   return result.rows as CrewMemberWithLatestLocation[];
 }
 
-export async function listCrewMembers(filter?: { role?: CrewRole; active?: boolean }): Promise<CrewMember[]> {
+export async function listCrewMembers(filter?: { role?: CrewRole; roles?: CrewRole[]; active?: boolean }): Promise<CrewMember[]> {
   const conditions: string[] = [];
   const params: unknown[] = [];
   if (filter?.role) {
     params.push(filter.role);
     conditions.push(`role = $${params.length}`);
+  }
+  if (filter?.roles && filter.roles.length > 0) {
+    params.push(filter.roles);
+    conditions.push(`role = ANY($${params.length})`);
   }
   if (filter?.active !== undefined) {
     params.push(filter.active);
