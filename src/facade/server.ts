@@ -10,6 +10,7 @@ import { createServer, type Server } from "node:http";
 import { pathToFileURL } from "node:url";
 import { Router } from "./router.js";
 import { sendJson } from "./context.js";
+import { checkFacadeRateLimit, sendRateLimited } from "./rateLimit.js";
 import { registerAuthRoutes } from "./routes/auth.js";
 import { registerNotificationRoutes } from "./routes/notifications.js";
 import { registerEquipmentRoutes } from "./routes/equipment.js";
@@ -55,6 +56,12 @@ export function buildFacadeServer(): Server {
   registerVendorRoutes(router);
 
   return createServer((req, res) => {
+    const pathname = new URL(req.url ?? "/", "http://localhost").pathname;
+    const rateLimit = checkFacadeRateLimit(req, pathname);
+    if (!rateLimit.allowed) {
+      sendRateLimited(res, rateLimit.retryAfterSeconds);
+      return;
+    }
     router.dispatch(req, res).then((handled) => {
       if (!handled) sendJson(res, 404, { detail: "Not found" });
     }).catch((err) => {
