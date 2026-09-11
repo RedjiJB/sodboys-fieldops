@@ -28,6 +28,7 @@ import { registerSpendingTools } from "./tools/spending.js";
 import { registerPayrollTools } from "./tools/payroll.js";
 import { registerKpiTools } from "./tools/kpis.js";
 import { registerFieldReportTools } from "./tools/fieldReports.js";
+import { registerAgentInteractionTools } from "./tools/agentInteractions.js";
 
 export function buildMcpServer(): McpServer {
   const server = new McpServer({ name: "dcentral-fieldops", version: "0.1.0" });
@@ -60,6 +61,7 @@ export function buildMcpServer(): McpServer {
   registerPayrollTools(server);
   registerKpiTools(server);
   registerFieldReportTools(server);
+  registerAgentInteractionTools(server);
   return server;
 }
 

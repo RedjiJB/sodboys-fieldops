@@ -814,8 +814,12 @@ The following were surfaced directly during this walkthrough session
    site names truncate hard to 2–3 characters and weather stat lines lack
    line-height at 6+ sites; needs a further pass beyond the padding fix
    already shipped. **UI polish, open.**
-5. **No rate limiting anywhere on the façade** — system-wide gap, called out
-   in Part 17 §6. **Security hardening, open.**
+5. **No general rate limiting on `/api/v1/*` routes** — system-wide gap,
+   called out in Part 17 §6. Note: login itself is *not* part of this gap —
+   `loginAttempts.ts` already locks an account after 5 failed attempts in a
+   15-minute window (added 2026-08-24); the open gap is every other route,
+   plus login's lack of protection against a distributed/volumetric attack
+   spread across many accounts. **Security hardening, open.**
 6. **No MFA on admin accounts** — called out in Part 17 §1. **Security
    hardening, open.**
 7. **Login page has no "forgot password" link** — by design today (an admin
