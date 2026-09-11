@@ -21,6 +21,57 @@ consolidated, page-agnostic master checklist covering session/auth/API/
 infrastructure testing lives in the Appendix and should be run once per
 release, not once per page.
 
+**How the "Manual steps" boxes work**: starting with Part 2, every page
+section includes a **Manual steps** box — literal, numbered click/type
+instructions using the exact label text on screen (sidebar link text, button
+labels, field names), written for someone who has never opened this dashboard
+before. These are separate from the **Say** lines (what to tell an audience)
+and the **Frontend/UX decisioning**/**Security review** notes (what to
+understand) — follow the Manual steps with your own hands on your own
+keyboard while reading the rest for context.
+
+---
+
+## Part 0 — Logging in, step by step
+
+Before anything else, this is the literal sequence to get from a closed
+browser to the authenticated dashboard.
+
+**Manual steps:**
+1. Open a browser and go to `dashboard.sodboysltd.org` — type this directly
+   into the address bar (not a search engine), then press **Enter**.
+2. You'll land on a two-column marketing/login page. On the right side, under
+   the heading **Sign in**, click into the field labeled **Email** (it has a
+   placeholder that reads `you@company.com`).
+3. Type your email address exactly as provisioned for you (e.g.
+   `admin@sodboys.ca`) — no spaces, all lowercase.
+4. Press **Tab**, or click into the field labeled **Password** directly below
+   it.
+5. Type your password. If you want to confirm what you typed before
+   submitting, click the small eye icon on the right edge of the password
+   field to toggle visibility — click it again to re-hide it.
+6. (Optional) Click the checkbox labeled **Remember me for 30 days** if this
+   is your own device and you don't want to log in again for a month.
+7. Click the large green **Sign in** button below the password field.
+8. If your email/password are correct, the page redirects automatically to
+   the Dashboard (`/`) within a second or two — you'll see **"Welcome back,
+   [Your Name]"** at the top. If instead you see a red error banner, re-check
+   for typos; after 5 wrong attempts in a 15-minute window the account
+   locks out automatically as a security measure (see Part 13's security
+   review) — wait 15 minutes or ask an admin to check.
+
+**General navigation, before diving into individual pages**: the left sidebar
+(the column with the green leaf logo and "Sod Boys FieldOps" at the top)
+is how you move between every page in this walkthrough — click any item's
+text to navigate there; the currently-active page is highlighted. The
+**Search** box at the top of the sidebar (keyboard shortcut: press **⌘K** on
+Mac or **Ctrl+K** on Windows from anywhere) opens a command palette — type
+a few letters of any page name (e.g. "pay" for Payroll) and press **Enter**
+on the highlighted result to jump there without touching the mouse. The bell
+icon in the top-right header opens a dropdown preview of your Inbox; the
+circular avatar in the far top-right corner opens your account menu
+(Settings, and eventually a sign-out option).
+
 ---
 
 ## Part 1 — System overview (3–4 min)
@@ -146,6 +197,17 @@ mask the other."
 
 Land on `/` (or `/dashboard`).
 
+**Manual steps:** click **Dashboard** at the top of the sidebar (it's the
+first item under the **OVERVIEW** section header, with a grid-icon to its
+left) — or just note that this is where login already dropped you, so no
+click may be needed. To try the **Check in** button (top-right, green):
+click it, a form/modal opens asking for a site and either a crew member or
+vehicle — this is the same manual check-in path Part 11 (Map) uses, so you
+can safely click **Cancel**/the **X** to close it without submitting
+anything if you're just looking. To try **New purchase order** (top-right,
+outlined): click it, a form opens for creating a freeform PO (see Part 8) —
+again, close without submitting if this is just a look-around.
+
 **Say:** "This is a purpose-built landing page, not a generic template —
 the office's morning glance before the trucks leave."
 
@@ -253,6 +315,14 @@ Split into two halves:
 
 Navigate to `/equipment`.
 
+**Manual steps:** in the sidebar, click **Equipment & Fleet** (truck icon,
+second item under OVERVIEW). Once loaded, click the **Utilization** tab
+near the top of the page (it should already be selected — it's the only
+real tab, per the note below) to see the utilization numbers. To inspect
+one vehicle, click anywhere on its row in the table — a detail panel or
+page opens showing its plate, assigned driver, mileage, and latest known
+location.
+
 **Say:** "Vehicles, not general equipment yet — the backing table is
 `vehicles`, four real columns: plate, assigned driver, mileage, and latest
 telemetry point."
@@ -296,6 +366,14 @@ telemetry point."
 ## Part 5 — Resources & Crew (6–7 min)
 
 Navigate to `/resources`.
+
+**Manual steps:** in the sidebar, click **Resources & Crew** (people icon,
+third item under OVERVIEW). At the top of the page you'll see three tabs —
+**Resources**, **Requests**, **Assignments** — click each in turn to see
+the working crew list (Resources) vs. the two intentionally-empty tabs
+(Requests, Assignments — explained below). Use the search box above the
+table (placeholder text "Search code, name or notes…") to type a crew
+member's name or phone number and filter the list live as you type.
 
 **Say:** "This is deliberately the thinnest module in the whole system —
 same crew directory, wearing two different UI costumes across two tabs."
@@ -343,6 +421,13 @@ shared query wrapper rather than remembering it per call site.
 
 Navigate to `/field-time`.
 
+**Manual steps:** in the sidebar, click **Field Time** (stopwatch icon,
+fourth item under OVERVIEW). The four numbers at the top (Hours Booked,
+Daywork Hours, Hours Not Yet Approved, Lines Booked) update live from the
+same data — no click needed to refresh, but a browser refresh (F5) will
+re-fetch current numbers. Below that, the three chart panels are read-only;
+there's no interaction to demonstrate on them today (see the note on why).
+
 **Say:** "Timesheets, synthesized live from the same event stream Payroll
 reconciles against — there's no separate 'timesheet' table."
 
@@ -380,6 +465,13 @@ reconciles against — there's no separate 'timesheet' table."
 
 Navigate to `/site-inventory`.
 
+**Manual steps:** in the sidebar, click **Site Inventory** (warehouse/box
+icon, fifth item under OVERVIEW). Each row is one consumable item; the
+stock number and reorder threshold are both visible directly in the table,
+with a colored flag/badge when an item is at or below its reorder
+threshold — no click needed to see the low-stock state, it's always
+visible in the list.
+
 **Say:** "Consumables — fuel, seed, fertilizer, trimmer line — tracked as a
 flat quantity-on-hand per item, adjusted through the same
 confirm-before-execute pattern as everything a crew member self-reports."
@@ -408,6 +500,15 @@ confirm-before-execute pattern as everything a crew member self-reports."
 ## Part 8 — Procurement (5 min)
 
 Navigate to `/procurement`.
+
+**Manual steps:** in the sidebar, click **Procurement** (package icon,
+sixth item under OVERVIEW). Click any order's row to open its detail view
+(vendor contact info, line items, status). To try creating one: click the
+button usually labeled **New purchase order** near the top of the page (or
+use the same-named button from the Dashboard, Part 3) — fill in a vendor
+from the dropdown, add at least one line item (description + quantity),
+enter a cost, then either click **Save as draft** (if present) or close
+without submitting if you're only demonstrating the form.
 
 **Say:** "Purchase orders, two creation paths, mapped to a real vocabulary
 mismatch that's worth explaining if you're technical."
@@ -448,6 +549,15 @@ mismatch that's worth explaining if you're technical."
 ## Part 9 — Payroll (6–7 min)
 
 Navigate to `/payroll`.
+
+**Manual steps:** in the sidebar, click **Payroll** (wallet icon, seventh
+item under OVERVIEW). You'll land on the current month's pay batch —
+click its row (or it may already be expanded) to see the **Entries**
+table on the right with every crew member's hours/rate/gross/net. To try
+the export that was recently fixed: look for **Export CSV** and **Export
+JSON** buttons above the entries table (near "Reconcile" and "Submit for
+approval") and click either one — your browser should download a file
+immediately; open it to confirm it has real rows, not an error page.
 
 **Say:** "Reconciliation-only, by explicit design — this system never runs
 payroll, it computes what's owed from real clock data."
@@ -501,6 +611,12 @@ payroll, it computes what's owed from real clock data."
 
 Navigate to `/teams`.
 
+**Manual steps:** in the sidebar, click **Teams and visibility** (shield
+icon, eighth item under OVERVIEW). Click the **All Crew** team (likely the
+only one listed) to expand its membership list; click the
+**Restricted-records** tab, if present, to see the graceful-empty state
+mentioned below.
+
 **Say:** "One synthetic team — 'All Crew' — containing every crew member.
 The frontend's real multi-team, multi-role, restriction/access-matrix
 system has no backing concept here yet; rather than build a fake
@@ -517,6 +633,14 @@ multi-team structure, this is one honest team standing in for one."
 ## Part 11 — Map (3 min)
 
 Navigate to `/map`.
+
+**Manual steps:** in the sidebar, click **Map** (map-pin icon, ninth item
+under OVERVIEW). Use your mouse/trackpad to drag-pan and scroll-to-zoom
+the map like any web map. To log a manual check-in: find the check-in form
+(usually alongside or below the map), select a crew member or vehicle from
+its dropdown, select a site (or type coordinates if the form allows it),
+and click **Submit**/**Check in** — a new point should appear on the map
+within a few seconds.
 
 - Same MapLibre GL view as the dashboard widget, full-page, with a manual
   check-in form (log a crew member or vehicle's location by hand — the
@@ -542,6 +666,16 @@ Navigate to `/map`.
 ## Part 12 — Notification Webhooks (3 min)
 
 Navigate to `/notification-webhooks`.
+
+**Manual steps:** in the sidebar, click **Notification Webhooks** (bell/
+plug icon, near the bottom of the OVERVIEW section — admin-only, so it
+won't appear at all if you're logged in as a staff, non-admin user). Click
+**New webhook** (or similarly labeled button), type a real URL in the
+**URL** field (e.g. a test endpoint from a service like webhook.site if
+you're just trying this out, never a production URL you don't control),
+type a secret string in the **Secret** field, select which alert type(s)
+should trigger it, then click **Save**. To remove it afterward, find its
+row and click the trash/delete icon.
 
 - Register outbound webhook targets (URL + secret) that fire when
   specific alert types raise.
@@ -570,6 +704,23 @@ Navigate to `/notification-webhooks`.
 Navigate to `/settings`. **This page deserves the most dedicated security
 attention of any page in the whole dashboard** — it stores AI provider
 credentials and handles password changes.
+
+**Manual steps:**
+1. In the sidebar, click **Settings** (gear icon, near the bottom, above
+   BI Dashboards) — admin-only, so a staff account won't see this item at
+   all.
+2. **Profile section** (top): name/email/role are shown but not editable
+   from here — nothing to type.
+3. **AI provider keys**: click into the password-style field next to
+   **DeepSeek**, type a real API key, then click the **Save** button beside
+   that same field. Repeat independently for **OpenAI** and **Anthropic** —
+   each provider has its own field and its own Save button; saving one does
+   not touch the others. To remove a key, click **Clear** beside it instead.
+4. **Change password**: click into **Current password**, type your existing
+   password; click into **New password**, type the replacement; click the
+   green **Save** button beneath both fields. If **Current password** is
+   wrong, you'll see an error and the change won't apply — this is
+   intentional (see the security review below).
 
 - **Profile section**: name, email, role (read-only display).
 - **AI provider keys**: DeepSeek, OpenAI, Anthropic key fields — masked
@@ -617,6 +768,16 @@ credentials and handles password changes.
 
 ## Part 14 — BI Dashboards / Field Reports / Vendors / Site Cost Summary (5 min)
 
+**Manual steps:** these four live under **BI Dashboards**, **Field
+Reports**, **Vendors** in the sidebar (Site Cost Summary is usually reached
+from a link inside a site's own detail view, not its own sidebar item —
+look for a "Cost summary" or "5D" link on a Site Inventory/site-detail
+page, or type `/5d` directly into the address bar's path after the domain).
+Click each sidebar item in turn; none of the four have meaningful
+create/edit actions to try — Field Reports specifically only ever fills in
+via the WhatsApp bot (which is currently broken, see below), so an empty
+list here is expected, not a sign you did something wrong.
+
 - **BI Dashboards** (`/bi-dashboards`): `GET /api/v1/bi/kpis` — a small set
   of real cross-cutting KPIs, not a full BI engine.
 - **Field Reports**: crew-submitted field reports, read/list only from this
@@ -649,6 +810,13 @@ credentials and handles password changes.
 ---
 
 ## Part 15 — The chat assistant (3 min, if present in nav)
+
+**Manual steps:** look for a small floating round button, usually bottom-
+right corner of any page (it persists across navigation). Click it to open
+a chat panel; click into its text input at the bottom, type a real
+question (e.g. "how many crew members are active" or "list open alerts"),
+and press **Enter**. The response streams in above the input. Click the
+same floating button again, or an X/close icon on the panel, to dismiss it.
 
 - A small floating chat button, read-only tool registry (`list_crew`,
   `list_equipment`, `list_active_alerts`, `get_crew_payroll_summary`).
