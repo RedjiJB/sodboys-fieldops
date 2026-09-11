@@ -14,6 +14,7 @@ import { generateAndStoreKeyPair } from "../identity/keys.js";
 import { hashPassword, verifyPassword } from "../identity/passwords.js";
 import { getOrCreateSelfNode } from "../identity/node.js";
 import { issueCapabilityGrant, checkStandingCapability } from "../identity/capabilities.js";
+import { buildProvisioningUri, generateTotpSecret, verifyTotpCode } from "../identity/totp.js";
 
 export type DashboardRole = "admin" | "staff" | "owner";
 
@@ -26,12 +27,17 @@ export type User = {
   role: DashboardRole;
   active: boolean;
   created_at: string;
+  totp_secret: string | null;
+  totp_enabled: boolean;
 };
 
-export type PublicUser = Omit<User, "password_hash">;
+// totp_secret never leaves this module, same reasoning password_hash
+// never does -- a dashboard client only ever needs to know whether MFA is
+// on, never the secret itself.
+export type PublicUser = Omit<User, "password_hash" | "totp_secret">;
 
 function toPublicUser(user: User): PublicUser {
-  const { password_hash: _passwordHash, ...rest } = user;
+  const { password_hash: _passwordHash, totp_secret: _totpSecret, ...rest } = user;
   return rest;
 }
 
@@ -136,6 +142,52 @@ export async function changeOwnPassword(id: string, currentPassword: string, new
   const passwordHash = await hashPassword(newPassword);
   await pool.query("UPDATE users SET password_hash = $2 WHERE id = $1", [id, passwordHash]);
   return { ok: true };
+}
+
+// Admin MFA (TOTP). Enrollment is two steps, deliberately: startTotpEnrollment
+// generates and stores a secret but leaves totp_enabled false, so a half-
+// finished enrollment (QR generated, never scanned/confirmed) can never
+// silently start gating login. confirmTotpEnrollment only flips
+// totp_enabled after a real, currently-valid code proves the user's
+// authenticator app actually has the right secret.
+export type TotpEnrollment = { secret: string; provisioningUri: string };
+
+export async function startTotpEnrollment(id: string): Promise<TotpEnrollment | null> {
+  const result = await pool.query("SELECT email FROM users WHERE id = $1", [id]);
+  const email = (result.rows[0] as { email: string } | undefined)?.email;
+  if (!email) return null;
+
+  const secret = generateTotpSecret();
+  await pool.query("UPDATE users SET totp_secret = $2, totp_enabled = false WHERE id = $1", [id, secret]);
+  const provisioningUri = buildProvisioningUri({ secret, accountLabel: email, issuer: "Sod Boys FieldOps" });
+  return { secret, provisioningUri };
+}
+
+export type ConfirmTotpResult = { ok: true } | { ok: false; reason: "not_found" | "no_pending_secret" | "invalid_code" };
+
+export async function confirmTotpEnrollment(id: string, code: string): Promise<ConfirmTotpResult> {
+  const result = await pool.query("SELECT totp_secret FROM users WHERE id = $1", [id]);
+  const secret = (result.rows[0] as { totp_secret: string | null } | undefined)?.totp_secret;
+  if (result.rows.length === 0) return { ok: false, reason: "not_found" };
+  if (!secret) return { ok: false, reason: "no_pending_secret" };
+  if (!verifyTotpCode(secret, code)) return { ok: false, reason: "invalid_code" };
+
+  await pool.query("UPDATE users SET totp_enabled = true WHERE id = $1", [id]);
+  return { ok: true };
+}
+
+// Disabling always clears the secret too, not just the flag -- re-enabling
+// later means enrolling fresh (a new QR scan), never silently reactivating
+// a secret that sat dormant and potentially stale/exposed.
+export async function disableTotp(id: string): Promise<void> {
+  await pool.query("UPDATE users SET totp_enabled = false, totp_secret = NULL WHERE id = $1", [id]);
+}
+
+export async function verifyUserTotpCode(id: string, code: string): Promise<boolean> {
+  const result = await pool.query("SELECT totp_secret, totp_enabled FROM users WHERE id = $1", [id]);
+  const row = result.rows[0] as { totp_secret: string | null; totp_enabled: boolean } | undefined;
+  if (!row || !row.totp_enabled || !row.totp_secret) return false;
+  return verifyTotpCode(row.totp_secret, code);
 }
 
 export async function hasAdminCapability(userDid: string): Promise<boolean> {

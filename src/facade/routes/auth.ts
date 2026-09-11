@@ -5,7 +5,7 @@
 import type { Router } from "../router.js";
 import { readJsonBody, sendError, sendJson } from "../context.js";
 import { requireBearerToken } from "../auth.js";
-import { getUser, getUserByEmail } from "../../domain/users.js";
+import { getUser, getUserByEmail, verifyUserTotpCode } from "../../domain/users.js";
 import { verifyPassword } from "../../identity/passwords.js";
 import { createSession, deleteSession, resolveSession } from "../../domain/sessions.js";
 import { issueAccessTokenJwt } from "../../identity/accessToken.js";
@@ -13,7 +13,7 @@ import { isLoginLocked, recordLoginAttempt } from "../../domain/loginAttempts.js
 
 const REFRESH_TOKEN_DAYS = 30;
 
-type LoginBody = { email?: string; password?: string };
+type LoginBody = { email?: string; password?: string; totp_code?: string };
 type RefreshBody = { refresh_token?: string };
 
 export function registerAuthRoutes(router: Router): void {
@@ -40,6 +40,27 @@ export function registerAuthRoutes(router: Router): void {
       if (!user || !user.active || !passwordOk) {
         sendJson(res, 401, { detail: "Incorrect email or password" });
         return;
+      }
+
+      // MFA gate, second factor for accounts that have completed real
+      // enrollment (see users.ts's confirmTotpEnrollment -- totp_enabled
+      // only ever flips true after a live code proved the secret works).
+      // requires_totp: true lets the frontend show a code field and retry
+      // the same request rather than treating this as a hard failure --
+      // but a wrong/missing code still records a failed login attempt,
+      // so this gate doesn't create a brute-force loophole around
+      // loginAttempts.ts's own lockout.
+      if (user.totp_enabled) {
+        if (!body.totp_code) {
+          sendJson(res, 401, { detail: "TOTP code required", requires_totp: true });
+          return;
+        }
+        const totpOk = await verifyUserTotpCode(user.id, body.totp_code);
+        if (!totpOk) {
+          await recordLoginAttempt(body.email, false);
+          sendJson(res, 401, { detail: "Incorrect TOTP code", requires_totp: true });
+          return;
+        }
       }
 
       const accessToken = await issueAccessTokenJwt({ userId: user.id, userDid: user.did, role: user.role });
@@ -94,7 +115,7 @@ export function registerAuthRoutes(router: Router): void {
       // role is descriptive/display only here, same convention users.ts
       // documents -- real authorization already happened via
       // requireBearerToken -> checkStandingCapability wherever it matters.
-      sendJson(res, 200, { role: user.role, email: user.email, full_name: user.name });
+      sendJson(res, 200, { role: user.role, email: user.email, full_name: user.name, totp_enabled: user.totp_enabled });
     } catch (err) {
       sendError(res, err);
     }
