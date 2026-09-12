@@ -29,6 +29,13 @@ const CAPABILITIES = [
   "mcp:tool:resolve_notification_recipients",
   "mcp:tool:mark_notification_attempted",
   "mcp:tool:mark_notification_delivered",
+  // Notification rows carry no alert `type` field, only recipient_roles_
+  // override -- the poller uses this to fetch the real it_escalation_roles
+  // config and classify a pending notification as IT-issue-class by
+  // comparing role sets, the same distinction the domain layer itself
+  // already encodes (report_it_issue et al. route to it_escalation_roles
+  // specifically), rather than a name/text-based guess.
+  "mcp:tool:get_notification_settings",
 ] as const;
 
 async function main() {
