@@ -6,6 +6,7 @@ import {
   listConsumables,
   registerConsumable,
   registerConsumableAdjustmentExecutor,
+  registerConsumableCreationExecutor,
 } from "../../domain/consumables.js";
 import { submitForConfirmation } from "../../domain/confirmations.js";
 import { requireCapability } from "../middleware.js";
@@ -15,6 +16,39 @@ const stockingTypeSchema = z.enum(["stocked", "per_job_delivery"]);
 
 export function registerConsumableTools(server: McpServer): void {
   registerConsumableAdjustmentExecutor();
+  registerConsumableCreationExecutor();
+
+  server.registerTool(
+    "submit_consumable_creation",
+    {
+      title: "Submit Consumable Creation",
+      description:
+        "Proposes a new consumable material type for management review -- lets a crew member set up something like 'sod rolls -- yard stock' from chat instead of needing dashboard access. Does not create it directly: creates a pending_confirmations row. Minimum tier: 2.",
+      inputSchema: z.object({
+        ...credentialArg,
+        name: z.string(),
+        unit: z.string(),
+        stockingType: stockingTypeSchema,
+        reorderThreshold: z.number().optional(),
+        submittedByCrewMemberId: z.string().uuid(),
+      }),
+    },
+    async ({ credentialJwt, name, unit, stockingType, reorderThreshold, submittedByCrewMemberId }) => {
+      try {
+        await requireCapability(credentialJwt, "mcp:tool:submit_consumable_creation", 2);
+        const pending = await submitForConfirmation({
+          actionType: "consumable_creation",
+          capability: "mcp:tool:submit_consumable_creation",
+          summary: `New consumable: ${name} (${unit}, ${stockingType})`,
+          payload: { name, unit, stockingType, reorderThreshold: reorderThreshold ?? null },
+          submittedByCrewMemberId,
+        });
+        return { content: [{ type: "text", text: JSON.stringify({ status: "awaiting_review", pendingConfirmationId: pending.id }) }] };
+      } catch (err) {
+        return deniedResult(err);
+      }
+    },
+  );
 
   server.registerTool(
     "register_consumable",
@@ -47,22 +81,24 @@ export function registerConsumableTools(server: McpServer): void {
     {
       title: "Submit Consumable Adjustment",
       description:
-        "Submits a stocked consumable's quantity adjustment (a signed delta) for management review -- a crew member's own usage report isn't trusted alone. Does not execute directly: creates a pending_confirmations row. Fails at approval time if the consumable isn't 'stocked'. Minimum tier: 2.",
+        "Submits a stocked consumable's quantity adjustment (a signed delta) for management review -- a crew member's own usage report isn't trusted alone. Does not execute directly: creates a pending_confirmations row. Fails at approval time if the consumable isn't 'stocked'. Optional note/siteId capture which job the movement relates to -- the adjustment itself only ever changes the running quantity_on_hand, so this is the one place that provenance survives (in the pending_confirmations record), not on the consumable row. siteId isn't validated against a real site, since the job may not be registered as a site yet -- say it in note either way. Minimum tier: 2.",
       inputSchema: z.object({
         ...credentialArg,
         consumableId: z.string().uuid(),
         delta: z.number(),
         submittedByCrewMemberId: z.string().uuid(),
+        note: z.string().optional(),
+        siteId: z.string().uuid().optional(),
       }),
     },
-    async ({ credentialJwt, consumableId, delta, submittedByCrewMemberId }) => {
+    async ({ credentialJwt, consumableId, delta, submittedByCrewMemberId, note, siteId }) => {
       try {
         await requireCapability(credentialJwt, "mcp:tool:submit_consumable_adjustment", 2);
         const pending = await submitForConfirmation({
           actionType: "consumable_adjustment",
           capability: "mcp:tool:submit_consumable_adjustment",
-          summary: `Quantity adjustment of ${delta} for consumable ${consumableId}`,
-          payload: { consumableId, delta },
+          summary: `Quantity adjustment of ${delta} for consumable ${consumableId}${note ? ` -- ${note}` : ""}`,
+          payload: { consumableId, delta, note: note ?? null, siteId: siteId ?? null },
           submittedByCrewMemberId,
         });
         return { content: [{ type: "text", text: JSON.stringify({ status: "awaiting_review", pendingConfirmationId: pending.id }) }] };

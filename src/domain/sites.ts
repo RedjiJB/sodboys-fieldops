@@ -2,6 +2,7 @@ import { pool } from "../db/pool.js";
 import { fetchSessionsInRange } from "./timeclockSessions.js";
 import { getCrewPayProfile } from "./payroll.js";
 import { getNotificationSettings } from "./notificationSettings.js";
+import { registerConfirmationExecutor } from "./confirmations.js";
 
 export type SiteType = "job_site" | "depot" | "vendor" | "shop";
 
@@ -130,6 +131,25 @@ export async function getSiteCostSummary(siteId: string): Promise<SiteCostSummar
     total_spend: totalSpend,
     variance: budget != null ? budget - totalSpend : null,
   };
+}
+
+// Registered once at server startup (see src/mcp/tools/sites.ts) -- lets
+// a crew member propose a new job site over WhatsApp ("track this
+// against 184 Knudson") without needing dashboard access themselves,
+// same confirm-before-execute shape as submit_consumable_adjustment.
+// Real coordinates/geofencing still has to be added on the dashboard
+// afterward if the site needs them; this just gets the row on the books
+// so field reports/adjustments have something real to reference sooner
+// than "go add it on the dashboard first."
+export function registerSiteCreationExecutor(): void {
+  registerConfirmationExecutor("site_creation", async (payload) => {
+    const site = await registerSite({
+      name: payload.name as string,
+      type: (payload.type as SiteType | undefined) ?? "job_site",
+      address: (payload.address as string | undefined) ?? undefined,
+    });
+    return { resultId: site.id };
+  });
 }
 
 export type SiteWithActivityCounts = Site & { crew_today_count: number; open_alerts_count: number };

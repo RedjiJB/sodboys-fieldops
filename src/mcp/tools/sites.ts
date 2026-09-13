@@ -1,13 +1,47 @@
 import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/server";
-import { getSite, listSites, registerSite } from "../../domain/sites.js";
+import { getSite, listSites, registerSite, registerSiteCreationExecutor } from "../../domain/sites.js";
 import { fetchSiteWeather } from "../../domain/weather.js";
+import { submitForConfirmation } from "../../domain/confirmations.js";
 import { requireCapability } from "../middleware.js";
 import { credentialArg, deniedResult } from "./shared.js";
 
 const siteTypeSchema = z.enum(["job_site", "depot", "vendor", "shop"]);
 
 export function registerSiteTools(server: McpServer): void {
+  registerSiteCreationExecutor();
+
+  server.registerTool(
+    "submit_site_creation",
+    {
+      title: "Submit Site Creation",
+      description:
+        "Proposes a new job site for management review -- lets a crew member get a site on the books from chat (e.g. 'track this against 184 Knudson') without dashboard access. Does not create the site directly: creates a pending_confirmations row. Defaults to type job_site if unspecified; real geofencing/coordinates still need to be added on the dashboard afterward if wanted. Minimum tier: 2.",
+      inputSchema: z.object({
+        ...credentialArg,
+        name: z.string(),
+        address: z.string().optional(),
+        type: siteTypeSchema.optional(),
+        submittedByCrewMemberId: z.string().uuid(),
+      }),
+    },
+    async ({ credentialJwt, name, address, type, submittedByCrewMemberId }) => {
+      try {
+        await requireCapability(credentialJwt, "mcp:tool:submit_site_creation", 2);
+        const pending = await submitForConfirmation({
+          actionType: "site_creation",
+          capability: "mcp:tool:submit_site_creation",
+          summary: `New site: ${name}${address ? ` (${address})` : ""}`,
+          payload: { name, address: address ?? null, type: type ?? "job_site" },
+          submittedByCrewMemberId,
+        });
+        return { content: [{ type: "text", text: JSON.stringify({ status: "awaiting_review", pendingConfirmationId: pending.id }) }] };
+      } catch (err) {
+        return deniedResult(err);
+      }
+    },
+  );
+
   server.registerTool(
     "register_site",
     {

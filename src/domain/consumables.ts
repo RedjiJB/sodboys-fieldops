@@ -104,3 +104,18 @@ export function registerConsumableAdjustmentExecutor(): void {
     return { resultId: result.consumable.id };
   });
 }
+
+// Registered once at server startup (see src/mcp/tools/consumables.ts) --
+// lets a crew member propose a new consumable ("sod rolls -- yard
+// stock") from chat, same confirm-before-execute shape as site_creation.
+export function registerConsumableCreationExecutor(): void {
+  registerConfirmationExecutor("consumable_creation", async (payload) => {
+    const consumable = await registerConsumable({
+      name: payload.name as string,
+      unit: payload.unit as string,
+      stockingType: payload.stockingType as StockingType,
+      reorderThreshold: (payload.reorderThreshold as number | undefined) ?? undefined,
+    });
+    return { resultId: consumable.id };
+  });
+}

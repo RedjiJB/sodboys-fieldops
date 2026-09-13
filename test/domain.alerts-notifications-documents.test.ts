@@ -167,6 +167,27 @@ describe("alerts", () => {
     expect(result.alert.resolved_by).toBeNull();
   });
 
+  it("resolving an alert acknowledges its notification and pulls it out of listPendingNotifications", async () => {
+    const { alert } = await raiseAlert({ type: "it_issue", summary: "QA resolve-acknowledges-notification test" });
+    createdAlertIds.push(alert.id);
+
+    const beforeIds = (await listPendingNotifications()).map((n) => n.id);
+    const notificationRow = await pool.query("SELECT * FROM notifications WHERE source_type = 'alert' AND source_id = $1", [alert.id]);
+    const notificationId = notificationRow.rows[0].id as string;
+    expect(beforeIds).toContain(notificationId);
+    expect(notificationRow.rows[0].acknowledged_at).toBeNull();
+
+    const resolved = await resolveAlert(alert.id, { crewMemberId: crewId });
+    expect(resolved.ok).toBe(true);
+
+    const afterIds = (await listPendingNotifications()).map((n) => n.id);
+    expect(afterIds).not.toContain(notificationId);
+
+    const afterRow = await pool.query("SELECT * FROM notifications WHERE id = $1", [notificationId]);
+    expect(afterRow.rows[0].acknowledged_at).not.toBeNull();
+    expect(afterRow.rows[0].acknowledged_by).toBe(crewId);
+  });
+
   it("a null related_record_id never dedups -- every call creates a fresh alert", async () => {
     const first = await raiseAlert({ type: "it_issue", summary: "freeform report 1" });
     const second = await raiseAlert({ type: "it_issue", summary: "freeform report 2" });

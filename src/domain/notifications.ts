@@ -62,10 +62,14 @@ export async function createNotificationForAlert(
 }
 
 // What the delivery poller pulls each cycle: critical, never delivered,
-// and not yet at the retry cap (send_attempts < 5, same as v1).
+// not yet at the retry cap (send_attempts < 5, same as v1), and not
+// acknowledged -- resolveAlert (see alerts.ts) acknowledges a
+// notification the moment its underlying alert is fixed, so a
+// not-yet-delivered preview whose real problem is already resolved
+// shouldn't keep showing up here.
 export async function listPendingNotifications(): Promise<Notification[]> {
   const result = await pool.query(
-    `SELECT * FROM notifications WHERE priority = 'critical' AND delivered_at IS NULL AND send_attempts < 5 ORDER BY created_at`,
+    `SELECT * FROM notifications WHERE priority = 'critical' AND delivered_at IS NULL AND acknowledged_at IS NULL AND send_attempts < 5 ORDER BY created_at`,
   );
   return result.rows as Notification[];
 }

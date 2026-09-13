@@ -28,12 +28,13 @@ export function registerLoadoutTools(server: McpServer): void {
     {
       title: "Add Loadout Item",
       description:
-        "Adds one asset or consumable line to a loadout -- exactly one of assetId/consumableId must be set. scalesWithCrew items multiply by crew size when resolved, not stored pre-multiplied. Minimum tier: 3.",
+        "Adds one line to a loadout -- exactly one of assetId/consumableId/freeformLabel must be set. freeformLabel is a placeholder for something not yet registered as a real asset/consumable (e.g. 'boots'), for when a loadout is being put together before every item has a database row. scalesWithCrew items multiply by crew size when resolved, not stored pre-multiplied. Minimum tier: 3.",
       inputSchema: z.object({
         ...credentialArg,
         loadoutId: z.string().uuid(),
         assetId: z.string().uuid().optional(),
         consumableId: z.string().uuid().optional(),
+        freeformLabel: z.string().optional(),
         quantity: z.number().positive(),
         scalesWithCrew: z.boolean().optional(),
       }),

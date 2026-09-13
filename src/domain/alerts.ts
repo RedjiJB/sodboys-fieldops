@@ -110,6 +110,14 @@ export async function raiseAlert(args: {
 
 export type ResolveAlertResult = { ok: true; alert: Alert } | { ok: false; reason: "not_found" | "already_resolved" };
 
+// Resolving the underlying alert also acknowledges its notification --
+// "the problem is actually fixed" is a strictly stronger signal than "a
+// human has seen this and is on it", so it should carry that meaning
+// forward rather than leaving the notification to keep escalating (up to
+// max_escalations) or, if never delivered, showing up in every preview
+// listing forever after the real problem is already gone. Acknowledgment
+// and resolution stay separate concepts (see notifications.ts) -- this
+// only makes resolution *also* satisfy acknowledgment, not the reverse.
 export async function resolveAlert(id: string, resolver: { crewMemberId?: string; userId?: string }): Promise<ResolveAlertResult> {
   const current = await pool.query("SELECT * FROM alerts WHERE id = $1", [id]);
   const alert = current.rows[0] as Alert | undefined;
@@ -120,6 +128,13 @@ export async function resolveAlert(id: string, resolver: { crewMemberId?: string
     `UPDATE alerts SET resolved_at = now(), resolved_by = $2, resolved_by_user_id = $3 WHERE id = $1 RETURNING *`,
     [id, resolver.crewMemberId ?? null, resolver.userId ?? null],
   );
+
+  await pool.query(
+    `UPDATE notifications SET acknowledged_at = now(), acknowledged_by = $2, acknowledged_by_user_id = $3
+     WHERE source_type = 'alert' AND source_id = $1 AND acknowledged_at IS NULL`,
+    [id, resolver.crewMemberId ?? null, resolver.userId ?? null],
+  );
+
   return { ok: true, alert: result.rows[0] as Alert };
 }
 

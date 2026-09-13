@@ -15,6 +15,7 @@ export type LoadoutItem = {
   loadout_id: string;
   asset_id: string | null;
   consumable_id: string | null;
+  freeform_label: string | null;
   quantity: string; // NUMERIC
   scales_with_crew: boolean;
 };
@@ -27,21 +28,26 @@ export async function createLoadout(args: { name: string; jobTypeId?: string }):
   return result.rows[0] as Loadout;
 }
 
-// Exactly one of assetId/consumableId -- enforced by a DB CHECK
-// (loadout_items_exactly_one_target), not re-validated here; a violation
-// surfaces as a real constraint-violation error, same as any other
-// malformed-input case in this codebase.
+// Exactly one of assetId/consumableId/freeformLabel -- enforced by a DB
+// CHECK (loadout_items_exactly_one_target), not re-validated here; a
+// violation surfaces as a real constraint-violation error, same as any
+// other malformed-input case in this codebase. freeformLabel lets a
+// loadout list something ("boots") before it's ever registered as a real
+// asset/consumable row -- matches how a crew member actually thinks about
+// a personal kit (a list of stuff), not how the system otherwise requires
+// it (a list of database rows).
 export async function addLoadoutItem(args: {
   loadoutId: string;
   assetId?: string;
   consumableId?: string;
+  freeformLabel?: string;
   quantity: number;
   scalesWithCrew?: boolean;
 }): Promise<LoadoutItem> {
   const result = await pool.query(
-    `INSERT INTO loadout_items (loadout_id, asset_id, consumable_id, quantity, scales_with_crew)
-     VALUES ($1, $2, $3, $4, $5) RETURNING *`,
-    [args.loadoutId, args.assetId ?? null, args.consumableId ?? null, args.quantity, args.scalesWithCrew ?? false],
+    `INSERT INTO loadout_items (loadout_id, asset_id, consumable_id, freeform_label, quantity, scales_with_crew)
+     VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+    [args.loadoutId, args.assetId ?? null, args.consumableId ?? null, args.freeformLabel ?? null, args.quantity, args.scalesWithCrew ?? false],
   );
   return result.rows[0] as LoadoutItem;
 }
